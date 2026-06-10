@@ -1,53 +1,145 @@
-- name: Create AmneziaWG directories
-  ansible.builtin.file:
+---
+
+- name: Create directories
+  file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
-    mode: '0755'
+    mode: "0755"
   loop:
     - /opt/docker/amneziawg
     - /opt/docker/amneziawg/config
+    - /opt/docker/amneziawg/clients
 
-- name: Deploy AmneziaWG Dockerfile
-  ansible.builtin.copy:
-    dest: /opt/docker/amneziawg/Dockerfile
-    owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
-    mode: '0644'
-    content: |
-      FROM golang:1.24.4 AS awg
-      RUN git clone https://github.com/amnezia-vpn/amneziawg-go /awg
-      WORKDIR /awg
-      RUN go mod download && go mod verify && go build -ldflags '-linkmode external -extldflags "-fno-PIC -static"' -v -o /usr/bin/amneziawg-go
-      FROM alpine:3.19
-      ARG AWGTOOLS_RELEASE="1.0.20250901"
-      RUN apk --no-cache add iproute2 iptables bash curl unzip wget && cd /usr/bin && wget "https://github.com/amnezia-vpn/amneziawg-tools/releases/download/v${AWGTOOLS_RELEASE}/alpine-3.19-amneziawg-tools.zip" && unzip -j alpine-3.19-amneziawg-tools.zip && rm alpine-3.19-amneziawg-tools.zip && chmod +x /usr/bin/awg /usr/bin/awg-quick && ln -sf /usr/bin/awg /usr/bin/wg && ln -sf /usr/bin/awg-quick /usr/bin/wg-quick
-      COPY --from=awg /usr/bin/amneziawg-go /usr/bin/amneziawg-go
+- name: Generate server key
+  shell: |
+    test -f /opt/docker/amneziawg/server.key || wg genkey > /opt/docker/amneziawg/server.key
+  args:
+    executable: /bin/bash
 
-- name: Deploy AmneziaWG compose
-  ansible.builtin.copy:
-    dest: /opt/docker/amneziawg/docker-compose.yml
-    owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
-    mode: '0644'
-    content: |
-      services:
-        amneziawg:
-          build:
-            context: .
-            dockerfile: Dockerfile
-          container_name: amneziawg
-          restart: unless-stopped
-          network_mode: host
-          cap_add:
-            - NET_ADMIN
-          devices:
-            - /dev/net/tun:/dev/net/tun
-          volumes:
-            - ./config:/etc/amneziawg
-          command: sh -c "awg-quick up /etc/amneziawg/awg0.conf && sleep infinity"
+- name: Generate server pubkey
+  shell: |
+    test -f /opt/docker/amneziawg/server.pub || cat /opt/docker/amneziawg/server.key | wg pubkey > /opt/docker/amneziawg/server.pub
+  args:
+    executable: /bin/bash
 
-- name: Reminder for AWG config
-  ansible.builtin.debug:
-    msg: "Place generated awg0.conf into /opt/docker/amneziawg/config/awg0.conf before starting AWG."
+- name: Generate OpenWrt key
+  shell: |
+    test -f /opt/docker/amneziawg/openwrt.key || wg genkey > /opt/docker/amneziawg/openwrt.key
+  args:
+    executable: /bin/bash
+
+- name: Generate PC key
+  shell: |
+    test -f /opt/docker/amneziawg/pc.key || wg genkey > /opt/docker/amneziawg/pc.key
+  args:
+    executable: /bin/bash
+
+- name: Generate Mobile key
+  shell: |
+    test -f /opt/docker/amneziawg/mobile.key || wg genkey > /opt/docker/amneziawg/mobile.key
+  args:
+    executable: /bin/bash
+
+- name: Generate MB key
+  shell: |
+    test -f /opt/docker/amneziawg/mb.key || wg genkey > /opt/docker/amneziawg/mb.key
+  args:
+    executable: /bin/bash
+
+- name: Generate public keys
+  shell: |
+    cat {{ item }}.key | wg pubkey > {{ item }}.pub
+  args:
+    executable: /bin/bash
+  loop:
+    - /opt/docker/amneziawg/openwrt
+    - /opt/docker/amneziawg/pc
+    - /opt/docker/amneziawg/mobile
+    - /opt/docker/amneziawg/mb
+
+- name: Read keys
+  slurp:
+    src: "{{ item }}"
+  register: awg_keys
+  loop:
+    - /opt/docker/amneziawg/server.key
+    - /opt/docker/amneziawg/server.pub
+    - /opt/docker/amneziawg/openwrt.pub
+    - /opt/docker/amneziawg/pc.pub
+    - /opt/docker/amneziawg/mobile.pub
+    - /opt/docker/amneziawg/mb.pub
+
+- name: Set facts
+  set_fact:
+    server_private_key: "{{ awg_keys.results[0].content | b64decode | trim }}"
+    server_public_key: "{{ awg_keys.results[1].content | b64decode | trim }}"
+    openwrt_pub: "{{ awg_keys.results[2].content | b64decode | trim }}"
+    pc_pub: "{{ awg_keys.results[3].content | b64decode | trim }}"
+    mobile_pub: "{{ awg_keys.results[4].content | b64decode | trim }}"
+    mb_pub: "{{ awg_keys.results[5].content | b64decode | trim }}"
+
+- name: Generate awg0.conf
+  template:
+    src: awg0.conf.j2
+    dest: /opt/docker/amneziawg/config/awg0.conf
+    mode: "0600"
+
+- name: Read client keys
+  slurp:
+    src: "{{ item }}"
+  register: client_keys
+  loop:
+    - /opt/docker/amneziawg/openwrt.key
+    - /opt/docker/amneziawg/pc.key
+    - /opt/docker/amneziawg/mobile.key
+    - /opt/docker/amneziawg/mb.key
+
+- name: Generate OpenWrt config
+  template:
+    src: client.conf.j2
+    dest: /opt/docker/amneziawg/clients/openwrt.conf
+    mode: "0600"
+  vars:
+    client_private_key: "{{ client_keys.results[0].content | b64decode | trim }}"
+    client_ip: "{{ awg_client_openwrt_ip }}"
+
+- name: Generate PC config
+  template:
+    src: client.conf.j2
+    dest: /opt/docker/amneziawg/clients/pc.conf
+    mode: "0600"
+  vars:
+    client_private_key: "{{ client_keys.results[1].content | b64decode | trim }}"
+    client_ip: "{{ awg_client_pc_ip }}"
+
+- name: Generate Mobile config
+  template:
+    src: client.conf.j2
+    dest: /opt/docker/amneziawg/clients/mobile.conf
+    mode: "0600"
+  vars:
+    client_private_key: "{{ client_keys.results[2].content | b64decode | trim }}"
+    client_ip: "{{ awg_client_mobile_ip }}"
+
+- name: Generate MB config
+  template:
+    src: client.conf.j2
+    dest: /opt/docker/amneziawg/clients/mb.conf
+    mode: "0600"
+  vars:
+    client_private_key: "{{ client_keys.results[3].content | b64decode | trim }}"
+    client_ip: "{{ awg_client_mb_ip }}"
+
+- name: Start AWG
+  shell: |
+    docker compose up -d
+  args:
+    chdir: /opt/docker/amneziawg
+
+- name: Show configs
+  debug:
+    msg:
+      - "OpenWrt: /opt/docker/amneziawg/clients/openwrt.conf"
+      - "PC:      /opt/docker/amneziawg/clients/pc.conf"
+      - "Mobile:  /opt/docker/amneziawg/clients/mobile.conf"
+      - "MB:      /opt/docker/amneziawg/clients/mb.conf"

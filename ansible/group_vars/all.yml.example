@@ -9,6 +9,7 @@ awg_subnet: 10.8.0.0/24
 awg_server_ip_cidr: 10.8.0.1/24
 awg_server_ip: 10.8.0.1
 
+
 pihole_web_port: 8080
 pihole_password: CHANGE_ME_STRONG_PASSWORD
 

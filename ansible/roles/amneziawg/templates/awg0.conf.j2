@@ -1,0 +1,30 @@
+[Interface]
+PrivateKey = {{ server_private_key }}
+Address = {{ awg_server_ip_cidr }}
+ListenPort = {{ awg_port }}
+
+Jc = {{ awg_jc }}
+Jmin = {{ awg_jmin }}
+Jmax = {{ awg_jmax }}
+S1 = {{ awg_s1 }}
+S2 = {{ awg_s2 }}
+H1 = {{ awg_h1 }}
+H2 = {{ awg_h2 }}
+H3 = {{ awg_h3 }}
+H4 = {{ awg_h4 }}
+
+[Peer]
+PublicKey = {{ openwrt_pub }}
+AllowedIPs = {{ awg_client_openwrt_ip }}
+
+[Peer]
+PublicKey = {{ pc_pub }}
+AllowedIPs = {{ awg_client_pc_ip }}
+
+[Peer]
+PublicKey = {{ mobile_pub }}
+AllowedIPs = {{ awg_client_mobile_ip }}
+
+[Peer]
+PublicKey = {{ mb_pub }}
+AllowedIPs = {{ awg_client_mb_ip }}

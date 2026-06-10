@@ -13,3 +13,28 @@
       /opt/docker
   args:
     executable: /bin/bash
+
+- name: Install backup script
+  copy:
+    dest: /usr/local/bin/vps-backup.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+
+      mkdir -p /root/backups
+
+      tar czf \
+      /root/backups/vps-$(date +%F-%H%M).tar.gz \
+      /etc/nftables.conf \
+      /etc/fail2ban \
+      /etc/docker \
+      /opt/docker
+
+      find /root/backups -type f -mtime +30 -delete
+      
+- name: Daily backup
+  cron:
+    name: VPS backup
+    minute: "0"
+    hour: "3"
+    job: "/usr/local/bin/vps-backup.sh"  

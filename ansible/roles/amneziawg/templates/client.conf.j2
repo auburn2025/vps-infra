@@ -1,0 +1,20 @@
+[Interface]
+PrivateKey = {{ client_private_key }}
+Address = {{ client_ip }}
+DNS = 10.8.0.1
+
+Jc = {{ awg_jc }}
+Jmin = {{ awg_jmin }}
+Jmax = {{ awg_jmax }}
+S1 = {{ awg_s1 }}
+S2 = {{ awg_s2 }}
+H1 = {{ awg_h1 }}
+H2 = {{ awg_h2 }}
+H3 = {{ awg_h3 }}
+H4 = {{ awg_h4 }}
+
+[Peer]
+PublicKey = {{ server_public_key }}
+Endpoint = {{ vps_public_ip }}:{{ awg_port }}
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
