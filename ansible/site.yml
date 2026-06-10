@@ -1,0 +1,12 @@
+- name: Configure VPS infrastructure
+  hosts: vps
+  become: true
+  roles:
+    - { role: base, tags: [base] }
+    - { role: docker, tags: [docker] }
+    - { role: nftables, tags: [nftables] }
+    - { role: fail2ban, tags: [fail2ban] }
+    - { role: amneziawg, tags: [amneziawg] }
+    - { role: pihole, tags: [pihole] }
+    - { role: mtproxy, tags: [mtproxy] }
+    - { role: backup, tags: [backup] }

@@ -1,0 +1,28 @@
+- name: Install nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    update_cache: true
+
+- name: Enable IPv4 forwarding
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-vpn-forward.conf
+    mode: '0644'
+    content: |
+      net.ipv4.ip_forward=1
+
+- name: Apply sysctl
+  ansible.builtin.command: sysctl --system
+  changed_when: false
+
+- name: Deploy nftables config
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: '0755'
+
+- name: Enable nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: restarted

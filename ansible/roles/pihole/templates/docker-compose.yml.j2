@@ -1,0 +1,20 @@
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    hostname: pihole
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: "{{ timezone }}"
+      FTLCONF_webserver_port: "{{ awg_server_ip }}:{{ pihole_web_port }}"
+      FTLCONF_dns_listeningMode: "all"
+      FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
+      FTLCONF_webserver_api_password: "{{ pihole_password }}"
+      FTLCONF_ntp_ipv4_active: "false"
+      FTLCONF_ntp_ipv6_active: "false"
+    volumes:
+      - ./etc-pihole:/etc/pihole
+      - ./etc-dnsmasq.d:/etc/dnsmasq.d
+    cap_add:
+      - NET_ADMIN

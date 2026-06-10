@@ -1,0 +1,20 @@
+- name: Create MTProxy directory
+  ansible.builtin.file:
+    path: /opt/docker/mtproxy
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0755'
+
+- name: Deploy MTProxy compose
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/docker/mtproxy/docker-compose.yml
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0644'
+
+- name: Start MTProxy
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: /opt/docker/mtproxy

@@ -1,0 +1,2 @@
+vault_pihole_password: CHANGE_ME
+vault_mtproxy_secret: CHANGE_ME_32_HEX_CHARS

@@ -1,0 +1,11 @@
+services:
+  mtproxy:
+    image: arm64builds/mtproxy:latest
+    container_name: mtproxy
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      SECRET: "{{ mtproxy_secret }}"
+      DOMAIN: "{{ mtproxy_fake_tls_domain }}"
+      HOST_PORT: "{{ mtproxy_port }}"
+      PUBLIC_IP: "{{ vps_public_ip }}"

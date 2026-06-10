@@ -1,0 +1,48 @@
+#!/usr/sbin/nft -f
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0;
+        policy drop;
+
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+
+        tcp dport 22 accept
+        udp dport {{ awg_port }} accept
+        tcp dport {{ mtproxy_port }} accept
+
+        iif "{{ awg_iface }}" accept
+
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0;
+        policy drop;
+
+        iif "{{ awg_iface }}" oif "{{ external_iface }}" accept
+        iif "{{ external_iface }}" oif "{{ awg_iface }}" ct state established,related accept
+
+        iif "docker0" oif "{{ external_iface }}" accept
+        iif "{{ external_iface }}" oif "docker0" ct state established,related accept
+    }
+
+    chain output {
+        type filter hook output priority 0;
+        policy accept;
+    }
+}
+
+table ip nat {
+    chain postrouting {
+        type nat hook postrouting priority 100;
+        policy accept;
+
+        ip saddr {{ awg_subnet }} oif "{{ external_iface }}" masquerade
+        ip saddr 172.17.0.0/16 oif "{{ external_iface }}" masquerade
+    }
+}

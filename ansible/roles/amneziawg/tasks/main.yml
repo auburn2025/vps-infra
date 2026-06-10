@@ -1,0 +1,53 @@
+- name: Create AmneziaWG directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0755'
+  loop:
+    - /opt/docker/amneziawg
+    - /opt/docker/amneziawg/config
+
+- name: Deploy AmneziaWG Dockerfile
+  ansible.builtin.copy:
+    dest: /opt/docker/amneziawg/Dockerfile
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0644'
+    content: |
+      FROM golang:1.24.4 AS awg
+      RUN git clone https://github.com/amnezia-vpn/amneziawg-go /awg
+      WORKDIR /awg
+      RUN go mod download && go mod verify && go build -ldflags '-linkmode external -extldflags "-fno-PIC -static"' -v -o /usr/bin/amneziawg-go
+      FROM alpine:3.19
+      ARG AWGTOOLS_RELEASE="1.0.20250901"
+      RUN apk --no-cache add iproute2 iptables bash curl unzip wget && cd /usr/bin && wget "https://github.com/amnezia-vpn/amneziawg-tools/releases/download/v${AWGTOOLS_RELEASE}/alpine-3.19-amneziawg-tools.zip" && unzip -j alpine-3.19-amneziawg-tools.zip && rm alpine-3.19-amneziawg-tools.zip && chmod +x /usr/bin/awg /usr/bin/awg-quick && ln -sf /usr/bin/awg /usr/bin/wg && ln -sf /usr/bin/awg-quick /usr/bin/wg-quick
+      COPY --from=awg /usr/bin/amneziawg-go /usr/bin/amneziawg-go
+
+- name: Deploy AmneziaWG compose
+  ansible.builtin.copy:
+    dest: /opt/docker/amneziawg/docker-compose.yml
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0644'
+    content: |
+      services:
+        amneziawg:
+          build:
+            context: .
+            dockerfile: Dockerfile
+          container_name: amneziawg
+          restart: unless-stopped
+          network_mode: host
+          cap_add:
+            - NET_ADMIN
+          devices:
+            - /dev/net/tun:/dev/net/tun
+          volumes:
+            - ./config:/etc/amneziawg
+          command: sh -c "awg-quick up /etc/amneziawg/awg0.conf && sleep infinity"
+
+- name: Reminder for AWG config
+  ansible.builtin.debug:
+    msg: "Place generated awg0.conf into /opt/docker/amneziawg/config/awg0.conf before starting AWG."

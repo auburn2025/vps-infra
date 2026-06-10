@@ -1,0 +1,15 @@
+- name: Create backup directory
+  ansible.builtin.file:
+    path: /root/backups
+    state: directory
+    mode: '0700'
+
+- name: Create VPS config backup
+  ansible.builtin.shell: |
+    tar czf /root/backups/vps-backup-$(date +%F-%H%M%S).tar.gz \
+      /etc/nftables.conf \
+      /etc/fail2ban \
+      /etc/docker \
+      /opt/docker
+  args:
+    executable: /bin/bash

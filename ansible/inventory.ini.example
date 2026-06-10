@@ -1,0 +1,2 @@
+[vps]
+31.77.131.246 ansible_user=play2ai ansible_ssh_private_key_file=/home/asemenov/temp/vpsplay
