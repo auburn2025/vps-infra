@@ -1,0 +1,19 @@
+# Local inventory and secrets
+ansible/inventory.ini
+ansible/group_vars/all.yml
+ansible/group_vars/vault.yml
+
+# Private keys / generated configs
+*.key
+*.pem
+*.env
+*.conf
+artifacts/
+backups/
+*.tar.gz
+*.zip
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
